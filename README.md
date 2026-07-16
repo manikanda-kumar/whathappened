@@ -1,10 +1,15 @@
 <h1 align="center">whathappened</h1>
 
 <p align="center">
+  <a href="https://docs.x.ai/docs"
+    ><img
+      alt="Grok Build only"
+      src="https://img.shields.io/badge/Grok%20Build-only-black?style=flat-square"
+  /></a>
   <a href="https://agentskills.io"
     ><img
       alt="Agent Skills"
-      src="https://img.shields.io/badge/Agent%20Skills-compatible-blue?style=flat-square"
+      src="https://img.shields.io/badge/Agent%20Skills-package-blue?style=flat-square"
   /></a>
   <a href="LICENSE"
     ><img
@@ -25,56 +30,57 @@
 
 <h3 align="center">What just happened on X - and what is the room actually saying?</h3>
 
+<p align="center"><strong>Grok Build only.</strong> This skill needs Grok’s native X tools. Other agents can install the package; they cannot run it for real.</p>
+
 Something drops. A model ships. A founder posts. A product melts down.
 
 You open X and get dunks, screenshots, quote-tweet chains, and three conflicting "official" takes - none of them in one place.
 
-**whathappened** is an [Agent Skill](https://agentskills.io) that turns that firehose into a short neutral briefing: what happened, where the conversation is, the opinion map, the live debates, and the receipts.
+**whathappened** is a [Grok Build](https://docs.x.ai/docs) [Agent Skill](https://agentskills.io) that turns that firehose into a short neutral briefing: what happened, where the conversation is, the opinion map, the live debates, and the receipts.
 
 - **X-first** - public conversation from X, not a blog roundup. One optional web lookup only to resolve *who/what* the topic is.
-- **Adaptive window** - not stuck on "last 30 days." Breaking stories use hours; slower ones widen only as needed. Freshness wins by default.
+- **Adaptive window** - breaking stories use minutes or hours; quieter ones widen only when the story is incomplete. Freshness wins by default.
 - **Opinion map + debates** - camps, rough sample shares, steelman vs critique, with real post links - not a vibes paragraph.
 
 ## Quick Start
 
 ```sh
-# recommended: install globally for your coding agents
+# install into Grok Build (global recommended)
 $ npx skills add kunchenguid/whathappened -g
+# or: copy skills/whathappened → ~/.grok/skills/whathappened
 
-# then in a host with native X tools (Grok Build):
+# in Grok Build
 /whathappened Kimi K3
 ```
 
 You get a structured brief: **What happened**, **Where the conversation is**, **Public opinion map**, **The live debates**, **Notable posts**, **Gaps**.
 
+## Grok Build only
+
+This skill is **not** a multi-harness research product. It depends on Grok Build’s native X stack:
+
+- `x_keyword_search`
+- `x_semantic_search`
+- `x_thread_fetch`
+- `x_user_search`
+
+If those tools are missing, the skill should **refuse** rather than fake an X briefing from web search. Installing into Claude Code, Cursor, Codex, etc. will not give you a working run.
+
 ## Install
 
-**Global (recommended)** - available across projects:
+**Global (recommended)** for Grok:
 
 ```sh
 npx skills add kunchenguid/whathappened -g
 ```
 
-**Project-local** - committed with a repo for the team:
+**Project-local:**
 
 ```sh
 npx skills add kunchenguid/whathappened
 ```
 
-**Specific agents** (examples):
-
-```sh
-npx skills add kunchenguid/whathappened -g -a claude-code -a cursor -a codex
-npx skills add kunchenguid/whathappened -g -a '*'   # all detected agents
-```
-
-**List skills in this package without installing:**
-
-```sh
-npx skills add kunchenguid/whathappened --list
-```
-
-**From source / Grok Build user skill path:**
+**Direct into Grok’s user skills dir:**
 
 ```sh
 git clone https://github.com/kunchenguid/whathappened.git
@@ -82,18 +88,13 @@ cp -R whathappened/skills/whathappened ~/.grok/skills/whathappened
 # or: ln -s "$(pwd)/whathappened/skills/whathappened" ~/.grok/skills/whathappened
 ```
 
-Grok Build also discovers skills under `.agents/skills/` and (optionally) Claude/Cursor skill dirs, so a normal `npx skills add -g` install is often enough.
+Grok also discovers skills under `.agents/skills/`, so a normal `npx skills add -g` install often lands where Grok can see it. Prefer `~/.grok/skills/` when you want the Grok-native path explicitly.
 
-## Host requirement
+**List skills in this package without installing:**
 
-This skill is written for agents that can search X natively:
-
-- `x_keyword_search`
-- `x_semantic_search`
-- `x_thread_fetch`
-- `x_user_search`
-
-**Grok Build** is the primary host. If those tools are missing, the skill should refuse rather than fake an X briefing from web search.
+```sh
+npx skills add kunchenguid/whathappened --list
+```
 
 ## How It Works
 
@@ -124,7 +125,7 @@ topic
       briefing
 ```
 
-- **Modes:** Breaking (hours) → Same-day → Story (days) → Background (up to ~30d) - shortest window that still explains the story.
+- **Modes:** Breaking (hours) → Same-day → Story (days) → Background (longer only if needed) - shortest window that still explains the story.
 - **Soft web rule:** at most one lookup for identity. Sentiment stays X-only.
 - **No discovery mode in v1:** you must name a topic (`/whathappened` alone asks for one).
 
@@ -147,7 +148,7 @@ skills/whathappened/
     failure-modes.md       # thin sample, bots, entity collisions, …
 ```
 
-Compatible with [`npx skills`](https://github.com/vercel-labs/skills) discovery (`skills/<name>/SKILL.md`).
+Ships as an [`npx skills`](https://github.com/vercel-labs/skills) package (`skills/<name>/SKILL.md`) for install convenience. Runtime target remains Grok Build only.
 
 ## Development
 
@@ -158,8 +159,9 @@ $EDITOR skills/whathappened/SKILL.md
 # smoke-test discovery locally
 npx skills add ./ -l
 
-# install from this checkout into your agents
+# install from this checkout for Grok
 npx skills add ./ -g -y
+# or symlink into ~/.grok/skills/whathappened
 ```
 
 ## Notes
