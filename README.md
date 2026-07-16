@@ -1,7 +1,7 @@
 <h1 align="center">whathappened</h1>
 
 <p align="center">
-  <a href="https://docs.x.ai/docs"
+  <a href="https://docs.x.ai/build/overview"
     ><img
       alt="Grok Build only"
       src="https://img.shields.io/badge/Grok%20Build-only-black?style=flat-square"
@@ -36,7 +36,7 @@ Something drops. A model ships. A founder posts. A product melts down.
 
 You open X and get dunks, screenshots, quote-tweet chains, and three conflicting "official" takes - none of them in one place.
 
-**whathappened** is a [Grok Build](https://docs.x.ai/docs) [Agent Skill](https://agentskills.io) that turns that firehose into a short neutral briefing: what happened, where the conversation is, the opinion map, the live debates, and the receipts.
+**whathappened** is a [Grok Build](https://docs.x.ai/build/overview) [Agent Skill](https://agentskills.io) that turns that firehose into a short neutral briefing: what happened, where the conversation is, the opinion map, the live debates, and the receipts.
 
 - **X-first** - public conversation from X, not a blog roundup. One optional web lookup only to resolve *who/what* the topic is.
 - **Adaptive window** - breaking stories use minutes or hours; quieter ones widen only when the story is incomplete. Freshness wins by default.
