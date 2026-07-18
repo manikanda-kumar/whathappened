@@ -41,6 +41,7 @@ You open X and get dunks, screenshots, quote-tweet chains, and three conflicting
 - **X-first** - public conversation from X, not a blog roundup. One optional web lookup only to resolve *who/what* the topic is.
 - **Adaptive window** - breaking stories use minutes or hours; quieter ones widen only when the story is incomplete. Freshness wins by default.
 - **Opinion map + debates** - camps, rough sample shares, steelman vs critique, with real post links - not a vibes paragraph.
+- **Your network when asked** - prefer or strictly filter to accounts you follow, or prefer a saved X List, using a local Field Theory roster.
 
 ## Quick Start
 
@@ -51,7 +52,43 @@ $ npx skills add kunchenguid/whathappened -g
 
 # in Grok Build
 /whathappened Kimi K3
+/whathappened Kimi K3 from people I follow
+/whathappened Kimi K3 only from people I follow
+/whathappened Kimi K3 from https://x.com/i/lists/1979812953135497678
 ```
+
+Global X remains the default. Personal audience requests use local Field Theory
+data only to verify membership and find candidates. Grok still fetches every
+quoted post and receipt through its native X tools.
+
+### Personal audience setup
+
+Following requires a complete local snapshot:
+
+```sh
+ft sync-following
+ft experts list --json --limit 2
+```
+
+X List prefer mode requires a saved member roster and may also use a cached List
+timeline:
+
+```sh
+ft x-list-members https://x.com/i/lists/1979812953135497678
+ft x-list https://x.com/i/lists/1979812953135497678 --since-hours 24
+```
+
+Supported personal scopes:
+
+| Request | Behavior |
+| ------- | -------- |
+| "from people I follow" | Prefer followed accounts while retaining global context |
+| "only people I follow" | Strict Following opinion map and receipts |
+| "from this List" | Prefer roster-verified List members |
+| "only from this List" | Strict only when Field Theory writes `stats.snapshotComplete: true` |
+
+Personal-audience results are sampled, not exhaustive. Followers and mutuals are
+not supported. A List name without a local alias needs its URL or numeric ID.
 
 Example output from a real run on launch day (edited only for README length; structure is what the skill produces):
 
@@ -131,6 +168,9 @@ This skill is **not** a multi-harness research product. It depends on Grok Build
 
 If those tools are missing, the skill should **refuse** rather than fake an X briefing from web search. Installing into Claude Code, Cursor, Codex, etc. will not give you a working run.
 
+Personal audience filters also need the local `ft` command and terminal access.
+The default global-X mode does not require Field Theory.
+
 ## Install
 
 **Global (recommended)** for Grok:
@@ -180,6 +220,10 @@ topic
 └────────┬────────┘
          ▼
 ┌─────────────────┐
+│ audience verify │  optional Following / X List roster intersection
+└────────┬────────┘
+         ▼
+┌─────────────────┐
 │ thread fetch    │  origin · official · camps · steelman
 └────────┬────────┘
          ▼
@@ -200,6 +244,9 @@ topic
 | ------ | ------- |
 | Slash | `/whathappened Kimi K3` |
 | Natural language | "what are people on X saying about the OpenAI board drama" |
+| Following prefer | `/whathappened Kimi K3 from people I follow` |
+| Following strict | `/whathappened Kimi K3 only from people I follow` |
+| List prefer | `/whathappened Kimi K3 from https://x.com/i/lists/1979812953135497678` |
 
 The agent should auto-invoke when the description matches (launch reaction, X/Twitter sentiment, "what happened with…").
 

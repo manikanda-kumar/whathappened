@@ -21,6 +21,71 @@ over-constrained queries return empty.
 
 If an operator errors or returns nothing, simplify rather than invent syntax.
 
+## Personal audience rules
+
+The normal global query lanes always run. Audience queries add evidence; they do
+not replace the pulse, Top, Latest, Semantic, or first-party lanes.
+
+Compare handles case-insensitively and strip a leading `@` before matching a
+search result author against a Field Theory roster.
+
+When a personal audience is active, keep at least one Latest query free of
+`min_faves`, `filter:has_engagement`, and similar engagement floors. This is the
+lane where quiet roster accounts can surface before author intersection.
+
+Do not match roster membership from model memory. Save the Following roster JSON
+or read the List-member JSON, then use exact case-insensitive equality in `jq` or
+an equivalent local command for every candidate author. Re-check every author
+selected for the final opinion map or receipts before synthesis.
+
+Following roster check:
+
+```sh
+jq --arg h "${HANDLE#@}" \
+  'any(.[]; (.handle | ascii_downcase) == ($h | ascii_downcase))' "$ROSTER_FILE"
+```
+
+List roster check uses the same comparison over `.members[]`. Keep temporary
+roster files private and remove them after synthesis.
+
+### Following
+
+First run the broad entity queries below, then intersect every result author with
+the complete Following roster. This is the main coverage path and includes quiet
+accounts when X search surfaces their posts.
+
+Use `ft experts search "{Entity}" --json --limit 20` only to choose supplemental
+targeted searches. It is not the roster. Batch a few authors when the host query
+dialect accepts it:
+
+```text
+(from:alice OR from:bob OR from:carol) ("{Primary Entity}" OR {Alias}) since:{date}
+```
+
+If batching fails, simplify to one `from:` query at a time. Keep the supplemental
+call budget small; do not claim exhaustive per-account search.
+
+### X List
+
+When the host supports the operator:
+
+```text
+list:{List ID} ("{Primary Entity}" OR {Alias}) since:{date}
+```
+
+Treat the operator as discovery, not proof of membership. Verify every author
+against the local List-member roster. If `list:` is unsupported, use the global
+lanes plus roster intersection and re-fetch useful cached timeline post IDs.
+
+### Prefer and strict
+
+- Prefer keeps global results and ranks roster matches first.
+- Strict keeps global discovery for event grounding but removes non-roster
+  authors from the audience opinion map, shares, debates, and receipts.
+  Non-roster origin or official posts may still support **What happened**.
+- Semantic search usually cannot carry roster operators. Always apply roster
+  intersection after the tool returns results.
+
 ## Lane recipes
 
 ### Pulse (Latest, short window)

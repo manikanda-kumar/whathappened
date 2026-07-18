@@ -83,3 +83,52 @@ say the sample is one-sided rather than inventing balance.
 
 **Do:** Rough buckets only (`~half`, `~1/3`, or coarse percents) with explicit
 "qualitative from this sample" language.
+
+## 13. Field Theory unavailable or Following incomplete
+
+**Symptoms:** `ft` is missing, `ft experts list` is unknown, or the command
+refuses an incomplete Following snapshot.
+
+**Do:** Stop the personal-audience path. Do not label global results Following.
+Tell the user to update Field Theory or finish `ft sync-following`, and offer the
+same topic with Global X instead.
+
+## 14. Unknown or ambiguous List
+
+**Symptoms:** The user says "my AI list" but no local alias resolves to one List,
+or several IDs could match.
+
+**Do:** Ask for the `x.com/i/lists/{id}` URL or numeric ID. Do not guess from
+timeline content or account names.
+
+## 15. Incomplete List requested in strict mode
+
+**Symptoms:** The List-member digest is missing `stats.snapshotComplete: true`,
+has a saved cursor, or otherwise reports a partial crawl.
+
+**Do:** Refuse strict mode. Offer prefer mode with sampled coverage. Never promote
+the partial member set to an authoritative allowlist.
+
+## 16. Thin personal-audience intersection
+
+**Symptoms:** Global X is active but only a few roster authors match, or all
+matches come from one author.
+
+**Do:** Widen one time step and try the allowed targeted audience searches. If
+the sample stays thin, say that the user's network is quiet on the topic. Do not
+fill an audience opinion map with global voices.
+
+## 17. Followers or mutuals requested
+
+**Symptoms:** The user asks for followers, mutuals, or "people who follow me."
+
+**Do:** Say those rosters are not supported. Offer accounts they follow or one X
+List. Do not approximate mutuals from engagement or replies.
+
+## 18. Stale handle in a personal roster
+
+**Symptoms:** A roster handle was renamed, a search result uses a newer handle,
+or an old handle now belongs to another user.
+
+**Do:** Treat handle membership as uncertain and say so in Gaps. Prefer a fresh
+roster sync. Never infer identity continuity from display name or bio similarity.

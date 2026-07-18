@@ -6,8 +6,9 @@ description: >
   exception: at most one web lookup for entity resolution. Use when the user
   runs /whathappened, or asks what happened / what's going on / X or Twitter
   reaction / public opinion on X about a person, product, launch, or event.
-  Grok Build only (requires native X tools). Neutral analyst tone. No discovery
-  mode in v1.
+  Supports optional views from accounts the user follows or an X List when a
+  usable local Field Theory roster is available. Grok Build only (requires
+  native X tools). Neutral analyst tone. No discovery mode in v1.
 metadata:
   short-description: "X-only adaptive briefing of events + public opinion"
 ---
@@ -15,7 +16,8 @@ metadata:
 # /whathappened
 
 You are running the **whathappened** skill. Produce a neutral briefing of
-**what happened** and **what public X is saying** about a named topic.
+**what happened** and what public X or the requested personal audience is saying
+about a named topic.
 
 This is not generic research. Follow this file top to bottom.
 
@@ -31,6 +33,16 @@ You need these tools:
 If they are missing, **stop**. Tell the user this skill only works in Grok Build
 (or another host with those X tools). Do not fake an X briefing from web search.
 
+Personal audience requests also need:
+
+- A terminal or shell tool
+- A local `ft` command from Field Theory
+
+Do not require Field Theory for the default global-X brief. If a personal
+audience was requested and `ft` is unavailable, stop and explain how to run the
+same topic globally. Do not silently fall back and label global results as the
+user's network.
+
 ## Hard rules
 
 1. **X-first synthesis.** All claims about the event and public opinion come
@@ -42,8 +54,9 @@ If they are missing, **stop**. Tell the user this skill only works in Grok Build
 3. **No discovery.** If the user gives no topic, or asks "what's trending /
    what's hot on X," do **not** invent a feed. Ask for a topic in one short
    question.
-4. **No flags in v1.** Ignore or gently ignore flag-like tokens (`--deep`,
-   window overrides). Infer window from the pulse (below).
+4. **Natural audience modifiers only.** Understand phrases such as "from people
+   I follow" and "only from this list." Continue to ignore flag-like window or
+   depth overrides. Infer the window from the pulse below.
 5. **Neutral analyst tone.** No hype voice, no dunking, no "the room is
    screaming." Report camps and debates as observed.
 6. **Adaptive window, freshest-first.** Do not default to 30 days. Prefer the
@@ -53,6 +66,10 @@ If they are missing, **stop**. Tell the user this skill only works in Grok Build
 8. **Citations.** Prefer `@handle` plus post links when available. Use the
    host's inline post citation render when you have post citation IDs from X
    tools. Never invent URLs. Never append a trailing dump of unrelated Sources.
+9. **Roster data is a filter, not evidence.** Field Theory can establish that an
+   author belongs to Following or a List and can supply candidate post IDs. Any
+   quoted text, event claim, engagement number, or receipt must still come from
+   an X tool result in this run.
 
 Read `references/query-patterns.md` when building search queries.
 Read `references/failure-modes.md` when the sample looks thin, mixed, or noisy.
@@ -65,8 +82,64 @@ Read `references/failure-modes.md` when the sample looks thin, mixed, or noisy.
 - Strip intent modifiers for search entities (`sentiment`, `drama`, `takes`)
   but keep them as synthesis focus if the user asked for them.
 - Classify loosely: event | person/org | product/release | debate.
+- Parse one audience scope and one behavior:
 
-### Step 1 - Optional entity web lookup (0 or 1 call)
+  | User intent | Audience | Behavior |
+  |-------------|----------|----------|
+  | No personal qualifier | Global X | global |
+  | "from my following", "people I follow" | Following | prefer |
+  | "only people I follow" | Following | strict |
+  | "from this list", "from my {name} list" | X List | prefer |
+  | "only from this list" | X List | strict, subject to the completeness gate below |
+
+- If the user asks for more than one personal audience, ask them to choose one.
+- Followers and mutuals are not supported. Say so and offer Following or one X
+  List instead.
+
+### Step 1 - Resolve a personal audience when requested
+
+Skip this step for Global X.
+
+#### Following
+
+1. Run `ft experts list --json --limit 5000` and save the JSON to a private
+   temporary file for exact membership checks. Use restrictive permissions
+   (`umask 077`) and delete the file before sending the brief.
+2. If the command fails because the snapshot is missing or incomplete, stop.
+   Point the user to `ft sync-following` or `ft sync-following --rebuild`.
+3. Keep every returned handle. Do not select only loud or classified accounts.
+   Check each candidate author mechanically against the saved roster with exact,
+   case-insensitive equality using `jq` or an equivalent local command. Never
+   decide Following membership from memory.
+4. Optionally run `ft experts search "{topic}" --json --limit 20` to choose a
+   few useful targeted searches. This supplements the full-roster intersection;
+   it never defines the audience.
+
+Following strict mode is allowed only when the roster command succeeds. Always
+label Following coverage **sampled**, because X search does not guarantee that
+it returned every matching post from all followed accounts.
+
+#### X List
+
+1. Resolve an `x.com/i/lists/{id}` URL or numeric ID. If the user gives only a
+   name and no local alias can resolve it, ask for the List URL or ID.
+2. Run `ft paths --json`, take `fieldTheoryDir`, and read
+   `{fieldTheoryDir}/x-lists/{id}-members-latest.json`.
+3. Require a non-empty member array. Check each candidate author mechanically
+   against `members[].handle` with exact, case-insensitive equality. Never decide
+   List membership from memory.
+4. If `{id}-latest.json` exists, use its in-window post IDs and authors as
+   discovery hints. Re-fetch selected posts through X tools before quoting or
+   citing them.
+5. Prefer mode may use a roster without an explicit completeness marker, but
+   must call the result sampled. Strict mode requires
+   `stats.snapshotComplete: true` in the member digest; otherwise explain that
+   strict List filtering is unavailable and offer prefer mode.
+
+Record the audience label, roster count, snapshot timestamp, behavior, and any
+completeness warning for the output header.
+
+### Step 2 - Optional entity web lookup (0 or 1 call)
 
 If the topic is ambiguous or you lack an obvious official handle/name:
 
@@ -76,13 +149,13 @@ If the topic is ambiguous or you lack an obvious official handle/name:
 
 If the topic is already clear (e.g. `Kimi K3`, `@sama`), skip web.
 
-### Step 2 - X entity grounding
+### Step 3 - X entity grounding
 
 - Use `x_user_search` for likely official or primary accounts when useful.
 - Build aliases: exact phrase, alternate spellings, product codes, cashtags.
 - Prefer first-party `from:handle` when you have a confident handle.
 
-### Step 3 - Pulse (always first)
+### Step 4 - Pulse (first X search)
 
 Run a **cheap Latest** keyword search with a short `since:` window to measure
 velocity. Example windows to try first:
@@ -108,9 +181,10 @@ State the chosen **Window** and **Mode** in the brief. Expand later only if:
 When ranking, prefer recency over raw likes unless an older post is clearly
 the origin everyone quotes or replies to - then fetch that thread.
 
-### Step 4 - Search lattice (parallel)
+### Step 5 - Search lattice (parallel)
 
-Use multiple lanes. Cap total X tool calls roughly **8–14** for a normal run.
+Use multiple lanes. Cap total X tool calls roughly **8–14** for a normal global
+run. A personal audience may add up to four focused searches or thread fetches.
 
 | Lane | Tool | Goal |
 |------|------|------|
@@ -119,11 +193,43 @@ Use multiple lanes. Cap total X tool calls roughly **8–14** for a normal run.
 | Semantic | `x_semantic_search` | Paraphrases and adjacent framing |
 | First-party | keyword `from:handle` when known | Official statement |
 | Debate | controversy / quote / counter-claim queries | Disagreement surface |
+| Audience | keyword/List queries + roster verification | Personal-network view |
 
 Use advanced operators from `references/query-patterns.md`. Always keep the
 primary entity in the query. Drop off-entity viral noise.
 
-### Step 5 - Thread enrichment
+Always run the normal global lanes. They preserve the event baseline and keep
+quiet accounts discoverable through broad-result intersection.
+
+When a personal audience is active, run at least one Latest lane without
+`min_faves`, `filter:has_engagement`, or another engagement floor. Floors may
+still be useful on the other global lanes, but they must not remove the only path
+where quiet roster accounts can surface.
+
+For Following:
+
+- Intersect authors from every global keyword and semantic result with the full
+  Following handle set.
+- Add targeted `from:` searches for a few topic-relevant roster accounts when
+  useful. Do not present that targeted subset as the full audience.
+
+For an X List:
+
+- Try an in-window `list:{id}` entity query if the host supports it.
+- Intersect all other result authors with the member roster.
+- Use cached List timeline post IDs to find candidates the global lanes missed,
+  then re-fetch those posts through X tools.
+
+Apply behavior after collection:
+
+- **prefer:** rank roster-verified posts ahead of global posts. Keep relevant
+  global context and label the difference when it changes the read.
+- **strict:** only roster-verified authors contribute to the audience opinion
+  map, rough shares, debates, and receipts. Non-roster origin or official posts
+  may still be cited and quoted in **What happened** for event facts, but they do
+  not count as audience opinion.
+
+### Step 6 - Thread enrichment
 
 `x_thread_fetch` the **3–8** highest-signal posts, prioritizing:
 
@@ -132,8 +238,10 @@ primary entity in the query. Drop off-entity viral noise.
 3. Highest-engagement summary take
 4. Strongest steelman and strongest criticism
 5. Posts that define a camp split
+6. High-signal roster voices that would otherwise be represented only by an
+   isolated search result
 
-### Step 6 - Rank and cluster (in head, lightweight)
+### Step 7 - Rank and cluster (in head, lightweight)
 
 Rough score:
 
@@ -144,11 +252,13 @@ score = engagement × freshness_weight × authority_weight × on_entity
 - **On-entity:** must clearly be about the primary topic (or hard alias).
 - **Authority (soft):** official accounts, domain experts, primary reporters -
   never a hard allowlist; do not over-weight bluechecks alone.
+- **Audience:** in prefer mode, give verified roster authors a ranking boost. In
+  strict mode, exclude non-roster authors from opinion synthesis.
 - **Clusters:** merge posts that make the same claim into one camp bullet.
 
 Discard engagement bait that fails entity grounding.
 
-### Step 7 - Synthesize
+### Step 8 - Synthesize
 
 Emit the brief using the template below. Do not dump raw ranked lists.
 Include **at least 2–3 short attributed quotes** from real posts when the
@@ -165,6 +275,8 @@ Use this structure. Keep headings. No extra blog-style sections.
 
 **Window:** {human window} · mode {Breaking|Same-day|Story|Background} · as of {UTC or local stamp}
 **X sample:** ~{N} posts · Top + Latest + {K} threads · confidence {high|medium|thin}
+**Audience:** {Global X | Following · prefer|strict · N accounts | List label/id · prefer|strict · N members}
+**Audience coverage:** {global | sampled · N matching posts from M roster authors}
 **Entity resolve:** {none | one web lookup: one-line what it was for}
 
 ## What happened
@@ -181,6 +293,7 @@ Use this structure. Keep headings. No extra blog-style sections.
 | … | ~X% | … | @a, @b |
 
 Label shares as qualitative judgment from this sample, not polling.
+For personal scopes, calculate rough shares only from roster-verified posts.
 
 ## The live debates
 1. **{title}** - Side A vs Side B; stakes in one line; best evidence posts
@@ -191,13 +304,15 @@ Label shares as qualitative judgment from this sample, not polling.
 - … (5–10 max)
 
 ## Gaps / caveats
-- Thin sample, missing official voice, language bias, bot/noise risk, web resolve used, etc.
+- Thin sample, audience sampling limits, incomplete List roster, missing official
+  voice, language bias, bot/noise risk, web resolve used, etc.
 - What would change this read if true
 ```
 
 ### Formatting notes
 
 - Use plain hyphens `-`, not em dashes.
+- Rename `Public opinion map` to `Audience opinion map` for a personal scope.
 - Neutral wording: "many posts claim", "a common critique is", not "everyone knows".
 - Rough camp percentages must be marked as rough sample judgment.
 - If confidence is thin, shrink the opinion map and expand Gaps.
@@ -207,6 +322,9 @@ Label shares as qualitative judgment from this sample, not polling.
 
 - [ ] Topic present (else ask)
 - [ ] X tools available (else refuse)
+- [ ] Audience parsed: global, Following, or one List
+- [ ] Personal audience has terminal + `ft` and a usable roster
+- [ ] Strict List, if requested, has `stats.snapshotComplete: true`
 - [ ] Web budget remaining: 0 or 1 resolve-only
 - [ ] No discovery request
 
@@ -216,5 +334,10 @@ Label shares as qualitative judgment from this sample, not polling.
 - [ ] Every quoted line attributable to a fetched post
 - [ ] No web-derived "sentiment"
 - [ ] Camps grounded in multiple posts when confidence is high
+- [ ] Personal-audience posts mechanically verified against the full roster
+- [ ] Strict mode excludes global voices from audience opinion and receipts
+- [ ] All personal-audience coverage labeled sampled
+- [ ] Handle-renaming risk noted in Gaps when the roster is not freshly synced
+- [ ] Temporary Following roster file deleted
 - [ ] Receipts are real and on-entity
 - [ ] Gaps honest about sample limits
