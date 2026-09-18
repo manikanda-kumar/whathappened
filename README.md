@@ -42,6 +42,7 @@ You open X and get dunks, screenshots, quote-tweet chains, and three conflicting
 - **Adaptive window** - breaking stories use minutes or hours; quieter ones widen only when the story is incomplete. Freshness wins by default.
 - **Opinion map + debates** - camps, rough sample shares, steelman vs critique, with real post links - not a vibes paragraph.
 - **Your network when asked** - prefer or strictly filter to accounts you follow, or prefer a saved X List, using a local Field Theory roster.
+- **Dual output** - chat markdown brief **and** a self-contained HTML report under sibling `../whathappened-reports/` on every full run (opt out with `markdown only`).
 
 ## Quick Start
 
@@ -258,7 +259,19 @@ skills/whathappened/
   references/
     query-patterns.md      # X advanced search recipes
     failure-modes.md       # thin sample, bots, entity collisions, …
+    report-html.md         # standard HTML report layout (Global / Following / List)
 ```
+
+HTML reports are **standard** on every full run. They live in a sibling folder
+(not packaged inside the skill):
+
+```
+../whathappened-reports/whathappened-{slug}-{date}.html
+```
+
+Personal List/Following reports add Audience + Coverage mast pills and badge
+roster vs global receipts — see `references/report-html.md`. Say `markdown only`
+to skip the HTML file.
 
 Ships as an [`npx skills`](https://github.com/vercel-labs/skills) package (`skills/<name>/SKILL.md`) for install convenience. Runtime target remains Grok Build only.
 

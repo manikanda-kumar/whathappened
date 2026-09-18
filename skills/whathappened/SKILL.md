@@ -8,9 +8,10 @@ description: >
   reaction / public opinion on X about a person, product, launch, or event.
   Supports optional views from accounts the user follows or an X List when a
   usable local Field Theory roster is available. Grok Build only (requires
-  native X tools). Neutral analyst tone. No discovery mode in v1.
+  native X tools). Dual output: chat markdown + HTML under sibling
+  whathappened-reports/. Neutral analyst tone. No discovery mode in v1.
 metadata:
-  short-description: "X-only adaptive briefing of events + public opinion"
+  short-description: "X-only adaptive briefing of events + public opinion (+ HTML report)"
 ---
 
 # /whathappened
@@ -73,6 +74,8 @@ user's network.
 
 Read `references/query-patterns.md` when building search queries.
 Read `references/failure-modes.md` when the sample looks thin, mixed, or noisy.
+Read `references/report-html.md` for the standard HTML report (always emitted after the
+markdown brief; includes Following / X List audience pills and receipt badges).
 
 ## Pipeline
 
@@ -249,6 +252,29 @@ Rough score:
 score = engagement × freshness_weight × authority_weight × on_entity
 ```
 
+**Optional: Jev signal filter (local, OpenRouter).** If this run has shell
+access and `OPENROUTER_API_KEY` set, you may score each candidate post with
+Jev (System One) through the same OpenRouter key used for Sonar grounding.
+Jev is served on OpenRouter's `/api/alpha/decisions` endpoint, **not**
+chat/completions. It decides `signal` (noise..origin), `on_entity`, `disclosure`,
+and `category` (launch / milestone / debate / analysis / meme / other) for the whole
+batch in one request; script owns policy/ranking:
+
+```bash
+# posts as JSON array or {posts:[...]} (handles, text, created_at, metrics)
+python3 skills/whathappened/scripts/signal_filter.py --topic "<primary entity>" posts.json
+cat posts.json | python3 skills/whathappened/scripts/signal_filter.py --topic "<primary entity>" --out scored.json
+# policy flags live in code; tune thresholds here, leave questions alone
+python3 skills/whathappened/scripts/signal_filter.py --topic X in.json \
+    --max-posts 40 --drop-on-entity-below 0.6 --ok 3
+```
+
+Jev is a judge/scorer, **not** a summarizer and not a research retriever: it
+prunes and ranks, never writes the brief (~$0.042/M input; a one-request batch
+of ~40 posts is roughly $0.001). Keep arithmetic (engagement, freshness, sums)
+in code as the script does. If Jev fails or the key is missing, fall back to
+the in-head rough score above; never block the brief on Jev.
+
 - **On-entity:** must clearly be about the primary topic (or hard alias).
 - **Authority (soft):** official accounts, domain experts, primary reporters -
   never a hard allowlist; do not over-weight bluechecks alone.
@@ -260,11 +286,14 @@ Discard engagement bait that fails entity grounding.
 
 ### Step 8 - Synthesize
 
-Emit the brief using the template below. Do not dump raw ranked lists.
+Emit the markdown brief using the template below. Do not dump raw ranked lists.
 Include **at least 2–3 short attributed quotes** from real posts when the
 sample has usable text.
 
 If the sample is thin, say so. Prefer honest uncertainty over fake consensus.
+
+Then always complete **Step 9** (HTML report). Dual output is standard: chat
+markdown + HTML file under `../whathappened-reports/`.
 
 ## Output template
 
@@ -316,7 +345,36 @@ For personal scopes, calculate rough shares only from roster-verified posts.
 - Neutral wording: "many posts claim", "a common critique is", not "everyone knows".
 - Rough camp percentages must be marked as rough sample judgment.
 - If confidence is thin, shrink the opinion map and expand Gaps.
-- End after Gaps. No trailing invitation spam unless the user asked follow-ups.
+- After Gaps in chat, always run Step 9. No trailing invitation spam unless the
+  user asked follow-ups.
+
+### Step 9 - Standard HTML report (always)
+
+**Always** write a self-contained HTML report after the markdown brief. HTML is
+standard output, not optional. Skip only if the user explicitly says
+`markdown only` / `no HTML`.
+
+1. Emit the markdown brief in chat first (or alongside).
+2. Write HTML using `references/report-html.md`. Reuse CSS/layout from an
+   existing file in the reports folder - do not invent a new visual system.
+3. **Default path** (sibling of this skill repo, not packaged inside the skill):
+
+   ```text
+   ../whathappened-reports/whathappened-{slug}-{YYYYMMDD}.html
+   ```
+
+   Absolute form when useful:
+   `{parent-of-skill-repo}/whathappened-reports/whathappened-{slug}-{YYYYMMDD}.html`
+
+   Create `whathappened-reports/` if missing. Use the path the user names when
+   they override. For personal scopes, include an audience token in the slug
+   when useful (`…-list-…`, `…-following-…`).
+4. **X List / Following:** include Audience + Coverage mast pills, use
+   **Audience opinion map**, badge roster receipts (`list` / `following`), and
+   mark prefer-mode global context receipts as `global`. Strict mode omits
+   non-roster authors from opinion + audience receipts.
+5. End the chat turn with a one-line path to the HTML file (so the user can open
+   or share it). Do not dump the full HTML into chat.
 
 ## Pre-flight checklist (before first tool call)
 
@@ -341,3 +399,7 @@ For personal scopes, calculate rough shares only from roster-verified posts.
 - [ ] Temporary Following roster file deleted
 - [ ] Receipts are real and on-entity
 - [ ] Gaps honest about sample limits
+- [ ] HTML written under `../whathappened-reports/` (unless user said no HTML)
+- [ ] HTML path reported to user in one line
+- [ ] HTML: Audience/Coverage pills for List or Following; opinion title +
+      receipt badges match scope (`references/report-html.md`)

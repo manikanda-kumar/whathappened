@@ -7,3 +7,10 @@
 .env
 .env.*
 node_modules/
+
+# harness run scratch (use-harness router + oracle artifacts)
+.harness/
+
+# local test runs / build artifacts
+__pycache__/
+*.pyc
